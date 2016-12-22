@@ -3,9 +3,12 @@ from multiprocessing import Process, Value
 import numpy as np
 from A3C_Learner import A3C_Learner
 import time
+import logging_utils
+
+logger = logging_utils.getLogger(__name__)
 
 def main(args):
-	print("CONFIGURATION :", args)
+	logger.debug("CONFIGURATION : {}".format(args))
 
 	#Global shared counter alloated in the shared memory. i = signed int
 	args.global_shared_counter = Value('i', 0)
@@ -29,7 +32,7 @@ def main(args):
 	for t in actor_learners:
 		t.join()
 
-	print("All processes are over")
+	logger.debug("All processes are over")
 
 
 if __name__ == '__main__':
