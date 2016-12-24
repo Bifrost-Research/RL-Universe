@@ -32,28 +32,29 @@ class QNetwork:
 
 		cnn_1 = slim.conv2d(state, 16, [8,8], stride=4, scope=self.name + '/cnn_1', activation_fn=nn.relu)
 
-		cnn_2 = slim.conv2d(cnn_1, 32, [4,4], stride=2, scope=self.name + 'cnn_2', activation_fn=nn.relu)
+		cnn_2 = slim.conv2d(cnn_1, 32, [4,4], stride=2, scope=self.name + '/cnn_2', activation_fn=nn.relu)
 
 		flatten = slim.flatten(cnn_2)
 
-		fcc_1 = slim.fully_connected(flatten, 256, scope=self.name + 'fcc_1', activation_fn=nn.relu)
+		fcc_1 = slim.fully_connected(flatten, 256, scope=self.name + '/fcc_1', activation_fn=nn.relu)
 
-		q_values = slim.fully_connected(fcc_1, self.nb_actions, scope=self.name + '/q_values', activation_fn=None)
+		adv_probas = slim.fully_connected(fcc_1, self.nb_actions, scope=self.name + '/adv_probas', activation_fn=nn.softmax)
+
+		value_state = slim.fully_connected(fcc_1, 1, scope=self.name + '/value_state', activation_fn=None)
 
 		#Input
 		self._tf_state = state
 		
 		#Output
-		self._tf_q_values = q_values
+		self._tf_adv_probas = adv_probas
+		self._tf_value_state = value_state
 
-	##
-	## @brief      Predict the q_values based on the state
-	##
-	## @param      self   The object
-	## @param      state  The state
-	##
-	## @return     q_values
-	##
-	def predict_q_values(self, state):
-		q_values = self._tf_session.run(self._tf_q_values, feed_dict={self._tf_state: np.array([state])})
-		return q_values
+	def predict(self, state):
+		fatches = [self._tf_value_state, self._tf_adv_probas]
+		value_state, adv_probas = self._tf_session.run(fatches, feed_dict={self._tf_state: np.array([state])})
+
+		value_state = np.asscalar(value_state)
+		adv_probas = adv_probas[0]
+
+		self.logger.debug("{} {}".format(value_state, adv_probas))
+		return value_state, adv_probas

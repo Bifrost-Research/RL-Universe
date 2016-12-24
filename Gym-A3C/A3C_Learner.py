@@ -64,49 +64,43 @@ class A3C_Learner(Process):
 
 		start_time = time.time()
 
-		while True:
+		while (self.global_step.value < self.max_global_steps):
 
 			local_step_start = self.local_step
 
 			while not(episode_over or (self.local_step - local_step_start == self.batch_size)):
 
 				#The action is selected using a policy
-				action = self.choose_next_action(state)
+				action, value_state, adv_probas = self.choose_next_action(state)
 
 				#Action performed by the environment
 				next_state, reward, episode_over = self.env.next(action)
+
+				total_episode_reward += reward
 
 				state = next_state
 				self.local_step += 1
 				self.global_step.value += 1
 
+			R = None
+			if episode_over:
+				R = 0
+			else:
+				value_state, adv_probas = self.q_network.predict(state)
+				R = value_state
 
-			#Check if the training is over
-			if self.global_step.value > self.max_global_steps:
-				break
+			#Start a new game on reaching a terminal state
+			if episode_over:
+				state = self.env.get_initial_state()
+				episode_over = False
+				total_episode_reward = 0
 			
-
 			break
 
-	##
-	## @brief      Select the action to apply at each state
-	##
-	## @param      self   The object
-	## @param      state  The current state of the environment
-	##
 	def choose_next_action(self, state):
-
-		#epsilon-greedy policy
-		a = None
-		if (random.random() % 1.0) < self.epsilon:
-			#Exploration => random action
-			a = np.random.randint(0, self.nb_actions)
-		else:
-			#Exploitation => greedy
-			q_values = self.q_network.predict_q_values(state)
-			a = np.argmax(q_values)
-
-		return a
+		value_state, adv_probas = self.q_network.predict(state)
+		action = np.random.choice(self.nb_actions, p=adv_probas)
+		return action, value_state, adv_probas
 
 
 
