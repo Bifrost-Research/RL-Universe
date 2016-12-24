@@ -68,8 +68,7 @@ class A3C_Learner(Process):
 
 			local_step_start = self.local_step
 
-			while not(episode_over or (self.local_step - local_step_start == self.batch_size)):
-
+			while not(episode_over or ((self.local_step - local_step_start) == self.batch_size)):
 				#The action is selected using a policy
 				action, value_state, adv_probas = self.choose_next_action(state)
 
@@ -82,6 +81,10 @@ class A3C_Learner(Process):
 				self.local_step += 1
 				self.global_step.value += 1
 
+			self.q_network.load_weights(self.q_network.get_weights())
+
+			break
+
 			R = None
 			if episode_over:
 				R = 0
@@ -89,8 +92,11 @@ class A3C_Learner(Process):
 				value_state, adv_probas = self.q_network.predict(state)
 				R = value_state
 
+
+
 			#Start a new game on reaching a terminal state
 			if episode_over:
+				self.logger.debug("Total reward : {}".format(total_episode_reward))
 				state = self.env.get_initial_state()
 				episode_over = False
 				total_episode_reward = 0

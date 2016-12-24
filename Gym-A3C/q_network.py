@@ -11,6 +11,7 @@ class QNetwork:
 		self.nb_actions = conf['nb_actions']
 		self.actor_id = None if 'actor_id' not in conf else conf['actor_id']
 		self.build_network()
+		self.create_assign_op_weights()
 
 		self._tf_session = tf.Session()
 
@@ -49,6 +50,17 @@ class QNetwork:
 		self._tf_adv_probas = adv_probas
 		self._tf_value_state = value_state
 
+	def create_assign_op_weights(self):
+		self._tf_value_vars = []
+		self._tf_assign_ops = []
+
+		for var in self.get_all_variables():
+			value_var = tf.placeholder(tf.float32, var.get_shape())
+			assign_op = var.assign(value_var)
+
+			self._tf_value_vars.append(value_var)
+			self._tf_assign_ops.append(assign_op)
+
 	def predict(self, state):
 		fatches = [self._tf_value_state, self._tf_adv_probas]
 		value_state, adv_probas = self._tf_session.run(fatches, feed_dict={self._tf_state: np.array([state])})
@@ -58,3 +70,18 @@ class QNetwork:
 
 		self.logger.debug("{} {}".format(value_state, adv_probas))
 		return value_state, adv_probas
+
+	def get_all_variables(self):
+		return tf.trainable_variables()
+
+	def get_weights(self):
+		return self._tf_session.run(self.get_all_variables())
+
+	def load_weights(self, new_weights):
+		feed_dict = {}
+		print(len(new_weights), len(self._tf_value_vars), len(self._tf_assign_ops))
+		for i in range(len(self._tf_value_vars)):
+			feed_dict[self._tf_value_vars[i]] = new_weights[i]
+
+		self._tf_session.run(self._tf_assign_ops, feed_dict=feed_dict)
+
