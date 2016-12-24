@@ -4,7 +4,6 @@ import numpy as np
 from A3C_Learner import A3C_Learner
 import time
 import logging_utils
-import q_network
 import atari_environment
 
 logger = logging_utils.getLogger(__name__)
@@ -18,10 +17,12 @@ def main(args):
 	#Number of actions available at each steps of the game
 	args.nb_actions = atari_environment.get_num_actions(args.game)
 
-	global_q_network = q_network.QNetwork({
-			'name': 'gloabl_q_network',
-			'nb_actions': args.nb_actions
-			})
+	#global_q_network = q_network.QNetwork({
+	#		'name': 'global_q_network',
+	#		'nb_actions': args.nb_actions
+	#		})
+
+	#global_q_network.predict_q_values(atari_environment.AtariEnvironment(args.game).get_initial_state())
 	
 	actor_learners = []
 
@@ -54,6 +55,7 @@ if __name__ == '__main__':
 	parser.add_argument('-n', '--num_actor_learners', default=4, type=int, help="number of actors (processes). Default = 4", dest="num_actor_learners")
 	parser.add_argument('--max_global_steps', default=8000000, type=int, help="Max number of training steps. Default = 8*10^6", dest="max_global_steps")
 	parser.add_argument('--batch_size', default=5, type=int, help='Number of steps before checking the gradients. Default=5', dest="batch_size")
+	parser.add_argument('--epsilon', default=0.15, type=float, help="Initial epsilon used in the epsilon-greedy policy. Default 0.15", dest="epsilon")
 
 	args = parser.parse_args()
 
