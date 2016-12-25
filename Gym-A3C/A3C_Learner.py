@@ -1,4 +1,4 @@
-from multiprocessing import Process
+from multiprocessing import Process, Barrier
 import numpy as np
 import gym
 from q_network import QNetwork
@@ -10,6 +10,7 @@ import tensorflow.contrib.slim as slim
 from tensorflow.python.ops import nn
 import time
 import random
+from copy import deepcopy
 
 ##
 ## @brief      Class implementing a A3C learner
@@ -31,17 +32,14 @@ class A3C_Learner(Process):
 		self.batch_size = args.batch_size
 		self.local_step = 0
 		self.global_step = args.global_step
+		self.barrier = args.barrier
+		self.queue = args.queue
 		self.max_global_steps = args.max_global_steps
 		self.thread_step_counter = 1
 		self.nb_actions = args.nb_actions
 		self.epsilon = args.epsilon
+		self.num_actor_learners = args.num_actor_learners
 		self.env = atari_environment.AtariEnvironment(args.game)
-
-		#self.q_network = q_network.QNetwork({
-		#	'name': 'Process_' + str(self.actor_id),
-		#	'nb_actions': self.nb_actions,
-		#	'actor_id': self.actor_id
-		#	})
 
 		self.logger = logging_utils.getLogger(__name__ + ":Process {}".format(self.actor_id))
 		
@@ -56,6 +54,20 @@ class A3C_Learner(Process):
 			'nb_actions': self.nb_actions,
 			'actor_id': self.actor_id
 			})
+
+		#The weights of the first process are going to be shared with the other processes
+		if self.actor_id == 0:
+			wts = self.q_network.get_weights()
+			for _ in range(self.num_actor_learners - 1):
+				self.queue.put(deepcopy(wts))
+
+		self.barrier.wait()
+
+		if self.actor_id > 0:
+			wts = self.queue.get()
+			self.q_network.load_weights(wts)
+
+		self.barrier.wait()
 
 		#Start with the intial state
 		state = self.env.get_initial_state()

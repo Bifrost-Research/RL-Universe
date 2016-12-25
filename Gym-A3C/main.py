@@ -1,5 +1,5 @@
 import argparse
-from multiprocessing import Process, Value
+from multiprocessing import Process, Value, Barrier, Queue
 import numpy as np
 from A3C_Learner import A3C_Learner
 import time
@@ -13,6 +13,12 @@ def main(args):
 
 	#Global shared counter alloated in the shared memory. i = signed int
 	args.global_step = Value('i', 0)
+
+	#Barrier used to synchronize the threads
+	args.barrier = Barrier(args.num_actor_learners)
+
+	#Thread safe queue used to communicate between the threads
+	args.queue = Queue()
 
 	#Number of actions available at each steps of the game
 	args.nb_actions = atari_environment.get_num_actions(args.game)

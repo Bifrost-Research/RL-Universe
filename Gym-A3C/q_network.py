@@ -79,7 +79,7 @@ class QNetwork:
 
 	def load_weights(self, new_weights):
 		feed_dict = {}
-		print(len(new_weights), len(self._tf_value_vars), len(self._tf_assign_ops))
+		
 		for i in range(len(self._tf_value_vars)):
 			feed_dict[self._tf_value_vars[i]] = new_weights[i]
 
