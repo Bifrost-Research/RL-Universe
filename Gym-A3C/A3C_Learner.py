@@ -69,6 +69,7 @@ class A3C_Learner(Process):
 			local_step_start = self.local_step
 
 			rewards = []
+			states = []
 			pi_target = []
 			V_target = []
 			actions_index_target = []
@@ -84,6 +85,7 @@ class A3C_Learner(Process):
 				V_target.append(value_state)
 				actions_index_target.append(action)
 				rewards.append(reward)
+				states.append(state)
 				total_episode_reward += reward
 
 				state = next_state
@@ -105,8 +107,7 @@ class A3C_Learner(Process):
 				R = rewards[i] + self.gamma*R
 				R_target[i] = R
 
-			grad = self.q_network.get_gradients(V_target, pi_target, R_target, actions_index_target)
-			print(grad)
+			grad = self.q_network.get_gradients(states, R_target, actions_index_target)
 
 			#Start a new game on reaching a terminal state
 			if episode_over:
