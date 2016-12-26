@@ -108,6 +108,7 @@ class A3C_Learner(Process):
 				R_target[i] = R
 
 			grad = self.q_network.get_gradients(states, R_target, actions_index_target)
+			self.q_network.apply_gradients(grad)
 
 			#Start a new game on reaching a terminal state
 			if episode_over:

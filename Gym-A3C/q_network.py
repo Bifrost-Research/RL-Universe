@@ -68,11 +68,6 @@ class QNetwork:
 		value_state = self._tf_value_state
 		adv_probas = self._tf_adv_probas
 
-		print("lol", value_state.get_shape)
-
-		#value_state = tf.placeholder(tf.float32, [None])
-		#adv_probas = tf.placeholder(tf.float32, [None, self.nb_actions])
-
 		R = tf.placeholder(tf.float32, [None])
 		actions_index = tf.placeholder(tf.int32, [None])
 
@@ -90,36 +85,39 @@ class QNetwork:
 
 		opt = tf.train.AdagradOptimizer(0.1)
 
-		get_grad = opt.compute_gradients(loss, var_list=self.get_all_variables())
+		grads = opt.compute_gradients(loss, var_list=self.get_all_variables())
 
-		#put_grad = tf.train.Optimizer.apply_gradients()
+		grad_placeholder = [(tf.placeholder("float", shape=grad[1].get_shape()), grad[1]) for grad in grads]
+
+		apply_placeholder_op = opt.apply_gradients(grad_placeholder)
 
 		#Input
 		self._tf_loss_R = R
 		self._tf_loss_action_index = actions_index
+		self._tf_grad_placeholder = grad_placeholder
 
 		#Output
 		self._tf_loss = loss
 		self._tf_optimizer = opt
-		self._tf_get_gradients = get_grad
-		#self._tf_apply_gradients = put_grad
+		self._tf_get_gradients = grads
+		self._tf_apply_gradients = apply_placeholder_op
 
 	def get_gradients(self, state, R, action_index):
-		print("toto", np.array(state).shape)
-
 		feed_dict = {
 		self._tf_state: np.array(state),
 		self._tf_loss_R: R,
 		self._tf_loss_action_index: action_index
 		}
-		print(self._tf_get_gradients)
-		#print(self._tf_loss)
-		#print([grad[1].name for grad in self._tf_get_gradients])
+
 		fatches = [grad[0] for grad in self._tf_get_gradients]
 		return self._tf_session.run(fatches, feed_dict=feed_dict)
 
-	def apply_gradients(self, grad_and_vars):
-		pass
+	def apply_gradients(self, grad_vals):
+		feed_dict = {}
+		for i in range(len(self._tf_grad_placeholder)):
+			feed_dict[self._tf_grad_placeholder[i][0]] = grad_vals[i]
+
+		self._tf_session.run(self._tf_apply_gradients, feed_dict=feed_dict)
 
 	def predict(self, state):
 		fatches = [self._tf_value_state, self._tf_adv_probas]
