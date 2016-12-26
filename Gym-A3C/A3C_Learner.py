@@ -107,22 +107,40 @@ class A3C_Learner(Process):
 				R = rewards[i] + self.gamma*R
 				R_target[i] = R
 
+			#Compute the gradient
 			grad = self.q_network.get_gradients(states, R_target, actions_index_target)
-			self.q_network.apply_gradients(grad)
+
+			self.apply_gradients_on_shared_network(grad)
 
 			#Start a new game on reaching a terminal state
 			if episode_over:
-				self.logger.debug("Total reward : {}".format(total_episode_reward))
+				elapsed_time = time.time() - start_time
+				global_t = self.global_step.value
+				steps_per_sec = global_t / elapsed_time
+				self.logger.debug("STEPS {} / REWARDS {} / {} STEPS/s".format(global_t, total_episode_reward, steps_per_sec))
 				state = self.env.get_initial_state()
 				episode_over = False
 				total_episode_reward = 0
-			
-			break
 
 	def choose_next_action(self, state):
 		value_state, adv_probas = self.q_network.predict(state)
 		action = np.random.choice(self.nb_actions, p=adv_probas)
 		return action, value_state, adv_probas
+
+	def apply_gradients_on_shared_network(self, grad):
+		if self.actor_id == 0:
+			self.q_network.apply_gradients(grad)
+		else:
+			self.queue.put(deepcopy(grad))
+
+		self.barrier.wait()
+
+		if self.actor_id == 0:
+			for _ in range(self.num_actor_learners - 1):
+				new_grad = self.queue.get()
+				self.q_network.apply_gradients(new_grad)
+
+		self.barrier.wait()
 
 	def sync_weights_local_networks(self):
 		#The weights of the first process are going to be shared with the other processes

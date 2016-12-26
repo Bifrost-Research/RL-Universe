@@ -83,7 +83,7 @@ class QNetwork:
 
 		loss = tf.add(loss_advantage_action_function, loss_value_state_function)
 
-		opt = tf.train.AdagradOptimizer(0.1)
+		opt = tf.train.AdagradOptimizer(0.001)
 
 		grads = opt.compute_gradients(loss, var_list=self.get_all_variables())
 
@@ -126,7 +126,7 @@ class QNetwork:
 		value_state = np.asscalar(value_state)
 		adv_probas = adv_probas[0]
 
-		self.logger.debug("{} {}".format(value_state, adv_probas))
+		#self.logger.debug("{} {}".format(value_state, adv_probas))
 		return value_state, adv_probas
 
 	def get_all_variables(self):
