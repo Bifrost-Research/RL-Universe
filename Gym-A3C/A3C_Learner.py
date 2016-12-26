@@ -55,21 +55,7 @@ class A3C_Learner(Process):
 			'actor_id': self.actor_id
 			})
 
-		#The weights of the first process are going to be shared with the other processes
-		if self.actor_id == 0:
-			wts = self.q_network.get_weights()
-			for _ in range(self.num_actor_learners - 1):
-				self.queue.put(deepcopy(wts))
-
-		self.barrier.wait()
-
-		if self.actor_id > 0:
-			wts = self.queue.get()
-			self.q_network.load_weights(wts)
-
-		self.barrier.wait()
-
-		#Start with the intial state
+		#Start with the initial state
 		state = self.env.get_initial_state()
 		total_episode_reward = 0
 		episode_over = False
@@ -78,7 +64,14 @@ class A3C_Learner(Process):
 
 		while (self.global_step.value < self.max_global_steps):
 
+			self.sync_weights_local_networks()
+
 			local_step_start = self.local_step
+
+			rewards = []
+			pi_target = []
+			V_target = []
+			actions_index_target = []
 
 			while not(episode_over or ((self.local_step - local_step_start) == self.batch_size)):
 				#The action is selected using a policy
@@ -87,6 +80,10 @@ class A3C_Learner(Process):
 				#Action performed by the environment
 				next_state, reward, episode_over = self.env.next(action)
 
+				pi_target.append(adv_probas)
+				V_target.append(value_state)
+				actions_index_target.append(action)
+				rewards.append(reward)
 				total_episode_reward += reward
 
 				state = next_state
@@ -95,8 +92,6 @@ class A3C_Learner(Process):
 
 			self.q_network.load_weights(self.q_network.get_weights())
 
-			break
-
 			R = None
 			if episode_over:
 				R = 0
@@ -104,7 +99,14 @@ class A3C_Learner(Process):
 				value_state, adv_probas = self.q_network.predict(state)
 				R = value_state
 
+			R_target = [0.0 for _ in rewards]
 
+			for i in reversed(range(len(rewards))):
+				R = rewards[i] + self.gamma*R
+				R_target[i] = R
+
+			grad = self.q_network.get_gradients(V_target, pi_target, R_target, actions_index_target)
+			print(grad)
 
 			#Start a new game on reaching a terminal state
 			if episode_over:
@@ -120,5 +122,18 @@ class A3C_Learner(Process):
 		action = np.random.choice(self.nb_actions, p=adv_probas)
 		return action, value_state, adv_probas
 
+	def sync_weights_local_networks(self):
+		#The weights of the first process are going to be shared with the other processes
+		if self.actor_id == 0:
+			wts = self.q_network.get_weights()
+			for _ in range(self.num_actor_learners - 1):
+				self.queue.put(deepcopy(wts))
 
+		self.barrier.wait()
 
+		#Other processes load the weights of the first process
+		if self.actor_id > 0:
+			wts = self.queue.get()
+			self.q_network.load_weights(wts)
+
+		self.barrier.wait()

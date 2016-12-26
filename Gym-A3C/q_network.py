@@ -12,6 +12,7 @@ class QNetwork:
 		self.actor_id = None if 'actor_id' not in conf else conf['actor_id']
 		self.build_network()
 		self.create_assign_op_weights()
+		self.create_op_loss()
 
 		self._tf_session = tf.Session()
 
@@ -51,6 +52,7 @@ class QNetwork:
 		self._tf_value_state = value_state
 
 	def create_assign_op_weights(self):
+
 		self._tf_value_vars = []
 		self._tf_assign_ops = []
 
@@ -60,6 +62,54 @@ class QNetwork:
 
 			self._tf_value_vars.append(value_var)
 			self._tf_assign_ops.append(assign_op)
+
+	def create_op_loss(self):
+
+		value_state = tf.placeholder(tf.float32, [None])
+		adv_probas = tf.placeholder(tf.float32, [None, self.nb_actions])
+		R = tf.placeholder(tf.float32, [None])
+		actions_index = tf.placeholder(tf.int32, [None])
+
+		diff = tf.sub(R, value_state)
+
+		masks = tf.one_hot(actions_index, on_value=True, off_value=False, depth=self.nb_actions)
+		pi_selected_actions = tf.boolean_mask(adv_probas, masks)
+		log_pi_selected_actions = tf.log(pi_selected_actions)
+
+		loss_advantage_action_function = tf.reduce_sum(tf.mul(log_pi_selected_actions, diff))
+
+		loss_value_state_function = tf.nn.l2_loss(diff)
+
+		loss = tf.add(loss_advantage_action_function, loss_value_state_function)
+
+		#get_grad = tf.train.Optimizer.compute_gradients(loss, var_list=self.get_all_variables())
+
+		#put_grad = tf.train.Optimizer.apply_gradients()
+
+		#Input
+		self._tf_loss_value_state = value_state
+		self._tf_loss_adv_probas = adv_probas
+		self._tf_loss_R = R
+		self._tf_loss_action_index = actions_index
+
+		#Output
+		self._tf_loss = loss
+		#self._tf_get_gradients = get_grad
+		#self._tf_apply_gradients = put_grad
+
+	def get_gradients(self, value_state, adv_probas, R, action_index):
+
+		feed_dict = {
+		self._tf_loss_value_state: value_state,
+		self._tf_loss_adv_probas: adv_probas,
+		self._tf_loss_R: R,
+		self._tf_loss_action_index: action_index
+		}
+
+		return self._tf_session.run(self._tf_loss, feed_dict=feed_dict)
+
+	def apply_gradients(self, grad_and_vars):
+		pass
 
 	def predict(self, state):
 		fatches = [self._tf_value_state, self._tf_adv_probas]
