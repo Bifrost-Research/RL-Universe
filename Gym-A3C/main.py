@@ -23,12 +23,10 @@ def main(args):
 	#Number of actions available at each steps of the game
 	args.nb_actions = atari_environment.get_num_actions(args.game)
 
-	#global_q_network = q_network.QNetwork({
-	#		'name': 'global_q_network',
-	#		'nb_actions': args.nb_actions
-	#		})
-
-	#global_q_network.predict_q_values(atari_environment.AtariEnvironment(args.game).get_initial_state())
+	if args.visualize == 0:
+		args.visualize = False
+	else:
+		args.visualize = True
 	
 	actor_learners = []
 
@@ -62,7 +60,7 @@ if __name__ == '__main__':
 	parser.add_argument('--max_global_steps', default=8000000, type=int, help="Max number of training steps. Default = 8*10^6", dest="max_global_steps")
 	parser.add_argument('--batch_size', default=5, type=int, help='Number of steps before checking the gradients. Default=5', dest="batch_size")
 	parser.add_argument('--epsilon', default=0.15, type=float, help="Initial epsilon used in the epsilon-greedy policy. Default 0.15", dest="epsilon")
-
+	parser.add_argument('-v', default=0, type=int, help="Visualize. 0: No display. 1: Display from all actors. Default = 0", dest="visualize")
 	args = parser.parse_args()
 
 	main(args)

@@ -39,7 +39,7 @@ class A3C_Learner(Process):
 		self.nb_actions = args.nb_actions
 		self.epsilon = args.epsilon
 		self.num_actor_learners = args.num_actor_learners
-		self.env = atari_environment.AtariEnvironment(args.game)
+		self.env = atari_environment.AtariEnvironment(args.game, visualize=args.visualize)
 
 		self.logger = logging_utils.getLogger(__name__ + ":Process {}".format(self.actor_id))
 		
