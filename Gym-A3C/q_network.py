@@ -83,7 +83,7 @@ class QNetwork:
 
 		loss = tf.add(loss_advantage_action_function, loss_value_state_function)
 
-		opt = tf.train.AdagradOptimizer(0.001)
+		opt = tf.train.RMSPropOptimizer(0.0007)
 
 		grads = opt.compute_gradients(loss, var_list=self.get_all_variables())
 

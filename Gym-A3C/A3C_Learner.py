@@ -123,8 +123,17 @@ class A3C_Learner(Process):
 				total_episode_reward = 0
 
 	def choose_next_action(self, state):
+
 		value_state, adv_probas = self.q_network.predict(state)
-		action = np.random.choice(self.nb_actions, p=adv_probas)
+
+
+		self.epsilon = 0.15
+		if np.random.rand() >= self.epsilon:
+			action = np.argmax(adv_probas)
+		else:
+			action = self.env.env.action_space.sample()
+
+		#action = np.random.choice(self.nb_actions, p=adv_probas)
 		return action, value_state, adv_probas
 
 	def apply_gradients_on_shared_network(self, grad):
