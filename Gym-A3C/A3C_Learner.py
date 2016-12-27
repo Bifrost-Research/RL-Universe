@@ -62,7 +62,8 @@ class A3C_Learner(Process):
 
 		start_time = time.time()
 
-		while (self.global_step.value < self.max_global_steps):
+		#while (self.global_step.value < self.max_global_steps):
+		while True:
 
 			self.sync_weights_local_networks()
 
@@ -70,8 +71,6 @@ class A3C_Learner(Process):
 
 			rewards = []
 			states = []
-			pi_target = []
-			V_target = []
 			actions_index_target = []
 
 			while not(episode_over or ((self.local_step - local_step_start) == self.batch_size)):
@@ -81,8 +80,6 @@ class A3C_Learner(Process):
 				#Action performed by the environment
 				next_state, reward, episode_over = self.env.next(action)
 
-				pi_target.append(adv_probas)
-				V_target.append(value_state)
 				actions_index_target.append(action)
 				rewards.append(reward)
 				states.append(state)
@@ -90,9 +87,11 @@ class A3C_Learner(Process):
 
 				state = next_state
 				self.local_step += 1
-				self.global_step.value += 1
+				
+			with self.global_step.get_lock():
+				self.global_step.value += self.local_step - local_step_start
 
-			self.q_network.load_weights(self.q_network.get_weights())
+			#self.q_network.load_weights(self.q_network.get_weights())
 
 			R = None
 			if episode_over:
@@ -115,7 +114,8 @@ class A3C_Learner(Process):
 			#Start a new game on reaching a terminal state
 			if episode_over:
 				elapsed_time = time.time() - start_time
-				global_t = self.global_step.value
+				with self.global_step.get_lock():
+					global_t = self.global_step.value
 				steps_per_sec = global_t / elapsed_time
 				self.logger.debug("STEPS {} / REWARDS {} / {} STEPS/s".format(global_t, total_episode_reward, steps_per_sec))
 				state = self.env.get_initial_state()
@@ -131,7 +131,7 @@ class A3C_Learner(Process):
 		if self.actor_id == 0:
 			self.q_network.apply_gradients(grad)
 		else:
-			self.queue.put(deepcopy(grad))
+			self.queue.put(grad)
 
 		self.barrier.wait()
 
@@ -147,7 +147,7 @@ class A3C_Learner(Process):
 		if self.actor_id == 0:
 			wts = self.q_network.get_weights()
 			for _ in range(self.num_actor_learners - 1):
-				self.queue.put(deepcopy(wts))
+				self.queue.put(wts)
 
 		self.barrier.wait()
 
