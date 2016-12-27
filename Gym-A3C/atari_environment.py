@@ -64,6 +64,8 @@ class AtariEnvironment(object):
             # pick from a simplified "LEFT", "RIGHT", "NOOP" action space.
             self.gym_actions = [1,2,3]
 
+        #print(self.gym_actions)
+
         # Screen buffer of size AGENT_HISTORY_LENGTH to be able
         # to build state arrays of size [1, AGENT_HISTORY_LENGTH, width, height]
         self.state_buffer = deque()
@@ -104,8 +106,8 @@ class AtariEnvironment(object):
         if self.visualize:
             self.env.render()
         
-        action_index = np.argmax(action_index)
-        
+        #action_index = np.argmax(action_index)
+        #print(action_index)
         x_t1, r_t, terminal, info = self.env.step(self.gym_actions[action_index])
         x_t1 = self.get_preprocessed_frame(x_t1)
 
