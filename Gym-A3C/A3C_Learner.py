@@ -30,6 +30,9 @@ class A3C_Learner(Process):
 		self.game = args.game
 		self.gamma = args.gamma
 		self.batch_size = args.batch_size
+		self.checkpoint_interval = args.checkpoint_interval
+		self.file_init_weights = args.file_init_weights
+		self.name_save_file = args.name_save_file
 		self.local_step = 0
 		self.global_step = args.global_step
 		self.barrier = args.barrier
@@ -56,6 +59,11 @@ class A3C_Learner(Process):
 			'gamma': self.gamma
 			})
 
+		#Load weights
+		if self.file_init_weights != "" and self.actor_id == 0:
+			self.q_network.restore(self.file_init_weights)
+			self.logger.debug("Resumed training from file : {}".format(self.file_init_weights))
+
 		#Start with the initial state
 		state = self.env.get_initial_state()
 		total_episode_reward = 0
@@ -63,6 +71,7 @@ class A3C_Learner(Process):
 
 		start_time = time.time()
 
+		step_last_save = 0
 		#while (self.global_step.value < self.max_global_steps):
 		while True:
 
@@ -130,6 +139,14 @@ class A3C_Learner(Process):
 				state = self.env.get_initial_state()
 				episode_over = False
 				total_episode_reward = 0
+
+			if self.actor_id == 0:
+				with self.global_step.get_lock():
+					global_t = self.global_step.value	
+				if (global_t - step_last_save) >= self.checkpoint_interval:
+					self.q_network.save(self.name_save_file, global_t)
+					step_last_save = global_t
+					self.logger.debug("Checkpoint saved")	
 
 	def choose_next_action(self, state):
 

@@ -60,7 +60,11 @@ if __name__ == '__main__':
 	parser.add_argument('--max_global_steps', default=8000000, type=int, help="Max number of training steps. Default = 8*10^6", dest="max_global_steps")
 	parser.add_argument('--batch_size', default=5, type=int, help='Number of steps before checking the gradients. Default=5', dest="batch_size")
 	parser.add_argument('--epsilon', default=0.15, type=float, help="Initial epsilon used in the epsilon-greedy policy. Default 0.15", dest="epsilon")
-	parser.add_argument('-v', default=0, type=int, help="Visualize. 0: No display. 1: Display from all actors. Default = 0", dest="visualize")
+	parser.add_argument('-v', '--visualize', default=0, type=int, help="Visualize. 0: No display. 1: Display from all actors. Default = 0", dest="visualize")
+	parser.add_argument('--load_weights', default="", type=str, help="Path to file to load pre-trained weights from. If none, then train from scratch", dest="file_init_weights")
+	parser.add_argument('--save_weights', default="models/weights.ckpt", type=str, help="Name of the files where the weights will be periodically stored", dest="name_save_file")
+	parser.add_argument('--checkpoint_interval', default=1000, type=int, help="Steps between two saves", dest="checkpoint_interval")
+
 	args = parser.parse_args()
 
 	main(args)
