@@ -52,7 +52,8 @@ class A3C_Learner(Process):
 		self.q_network = q_network.QNetwork({
 			'name': 'Process_' + str(self.actor_id),
 			'nb_actions': self.nb_actions,
-			'actor_id': self.actor_id
+			'actor_id': self.actor_id,
+			'gamma': self.gamma
 			})
 
 		#Start with the initial state
@@ -66,6 +67,16 @@ class A3C_Learner(Process):
 		while True:
 
 			self.sync_weights_local_networks()
+
+			# self.barrier.wait()
+			# if self.actor_id == 0:
+			# 	print("START")
+			# self.barrier.wait()
+			# print(self.q_network.predict(self.env.get_initial_state()))
+			# self.barrier.wait()
+			# if self.actor_id == 0:
+			# 	print("END")
+			# self.barrier.wait()
 
 			local_step_start = self.local_step
 
@@ -90,8 +101,6 @@ class A3C_Learner(Process):
 				
 			with self.global_step.get_lock():
 				self.global_step.value += self.local_step - local_step_start
-
-			#self.q_network.load_weights(self.q_network.get_weights())
 
 			R = None
 			if episode_over:
@@ -127,13 +136,13 @@ class A3C_Learner(Process):
 		value_state, adv_probas = self.q_network.predict(state)
 
 
-		self.epsilon = 0.15
-		if np.random.rand() >= self.epsilon:
-			action = np.argmax(adv_probas)
-		else:
-			action = self.env.env.action_space.sample()
+		#self.epsilon = 0.15
+		#if np.random.rand() >= self.epsilon:
+		#	action = np.argmax(adv_probas)
+		#else:
+		#	action = self.env.env.action_space.sample()
 
-		#action = np.random.choice(self.nb_actions, p=adv_probas)
+		action = np.random.choice(self.nb_actions, p=adv_probas)
 		return action, value_state, adv_probas
 
 	def apply_gradients_on_shared_network(self, grad):
@@ -142,12 +151,11 @@ class A3C_Learner(Process):
 		else:
 			self.queue.put(grad)
 
-		self.barrier.wait()
+		#self.barrier.wait()
 
 		if self.actor_id == 0:
 			for _ in range(self.num_actor_learners - 1):
-				new_grad = self.queue.get()
-				self.q_network.apply_gradients(new_grad)
+				self.q_network.apply_gradients(self.queue.get())
 
 		self.barrier.wait()
 
@@ -158,11 +166,10 @@ class A3C_Learner(Process):
 			for _ in range(self.num_actor_learners - 1):
 				self.queue.put(wts)
 
-		self.barrier.wait()
+		#self.barrier.wait()
 
 		#Other processes load the weights of the first process
 		if self.actor_id > 0:
-			wts = self.queue.get()
-			self.q_network.load_weights(wts)
+			self.q_network.load_weights(self.queue.get())
 
 		self.barrier.wait()

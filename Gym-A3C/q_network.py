@@ -9,6 +9,7 @@ class QNetwork:
 	def __init__(self, conf):
 		self.name = conf['name']
 		self.nb_actions = conf['nb_actions']
+		self.gamma = conf['gamma']
 		self.actor_id = None if 'actor_id' not in conf else conf['actor_id']
 		self.build_network()
 		self.create_assign_op_weights()
@@ -79,11 +80,12 @@ class QNetwork:
 
 		loss_advantage_action_function = tf.reduce_sum(tf.mul(log_pi_selected_actions, diff))
 
-		loss_value_state_function = tf.nn.l2_loss(diff)
+		#In the paper, the authors recommend to multiply the loss by 0.5
+		loss_value_state_function = tf.mul(tf.constant(0.5), tf.nn.l2_loss(diff))
 
 		loss = tf.add(loss_advantage_action_function, loss_value_state_function)
 
-		opt = tf.train.RMSPropOptimizer(0.0007)
+		opt = tf.train.RMSPropOptimizer(0.0007, decay=self.gamma)
 
 		grads = opt.compute_gradients(loss, var_list=self.get_all_variables())
 
