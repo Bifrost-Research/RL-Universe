@@ -1,5 +1,5 @@
 import argparse
-from multiprocessing import Process, Value, Barrier, Queue
+from multiprocessing import Process, Value, Barrier, Queue, Pipe
 import numpy as np
 from A3C_Learner import A3C_Learner
 import time
@@ -30,8 +30,18 @@ def main(args):
 	
 	actor_learners = []
 
+	#n-1 pipes are needed.
+	pipes = [Pipe() for _ in range(args.num_actor_learners - 1)]
+
 	#Loop launching all the learned on different process
 	for i in range(args.num_actor_learners):
+
+		if i == 0:
+			#A pipe to each other processe
+			args.pipes = [pipe[0] for pipe in pipes]
+		else:
+			#A pipe to the process 0
+			args.pipes = [pipes[i-1][1]]
 
 		#Process id
 		args.actor_id = i

@@ -38,6 +38,7 @@ class A3C_Learner(Process):
 		self.barrier = args.barrier
 		self.queue = args.queue
 		self.max_global_steps = args.max_global_steps
+		self.pipes = args.pipes
 		self.thread_step_counter = 1
 		self.nb_actions = args.nb_actions
 		self.epsilon = args.epsilon
@@ -170,27 +171,58 @@ class A3C_Learner(Process):
 		if self.actor_id == 0:
 			self.q_network.apply_gradients(grad)
 		else:
-			self.queue.put(grad)
+			#self.queue.put(grad)
+			self.pipes[0].send(grad)
 
 		#self.barrier.wait()
 
 		if self.actor_id == 0:
-			for _ in range(self.num_actor_learners - 1):
-				self.q_network.apply_gradients(self.queue.get())
+			for j in range(self.num_actor_learners - 1):
+				#self.q_network.apply_gradients(self.queue.get())
+				self.q_network.apply_gradients(self.pipes[j].recv())
 
 		self.barrier.wait()
 
+		# if self.actor_id == 0:
+		# 	self.q_network.apply_gradients(grad)
+		# else:
+		# 	self.queue.put(grad)
+
+		# #self.barrier.wait()
+
+		# if self.actor_id == 0:
+		# 	for _ in range(self.num_actor_learners - 1):
+		# 		self.q_network.apply_gradients(self.queue.get())
+
+		# self.barrier.wait()
+
 	def sync_weights_local_networks(self):
 		#The weights of the first process are going to be shared with the other processes
+		
 		if self.actor_id == 0:
 			wts = self.q_network.get_weights()
-			for _ in range(self.num_actor_learners - 1):
-				self.queue.put(wts)
+			for j in range(self.num_actor_learners - 1):
+				#self.queue.put(wts)
+				self.pipes[j].send(wts)
+				
 
 		#self.barrier.wait()
 
 		#Other processes load the weights of the first process
 		if self.actor_id > 0:
-			self.q_network.load_weights(self.queue.get())
+			self.q_network.load_weights(self.pipes[0].recv())
 
 		self.barrier.wait()
+
+		# if self.actor_id == 0:
+		# 	wts = self.q_network.get_weights()
+		# 	for _ in range(self.num_actor_learners - 1):
+		# 		self.queue.put(wts)
+
+		# #self.barrier.wait()
+
+		# #Other processes load the weights of the first process
+		# if self.actor_id > 0:
+		# 	self.q_network.load_weights(self.queue.get())
+
+		# self.barrier.wait()
