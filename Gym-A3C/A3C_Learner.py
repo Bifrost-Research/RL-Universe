@@ -139,6 +139,7 @@ class A3C_Learner(Process):
 					global_t = self.global_step.value
 				steps_per_sec = global_t / elapsed_time
 				self.logger.debug("STEPS {} / REWARDS {} / {} STEPS/s".format(global_t, total_episode_reward, steps_per_sec))
+				self.q_network.add_terminal_reward(global_t, total_episode_reward)
 				state = self.env.get_initial_state()
 				episode_over = False
 				total_episode_reward = 0

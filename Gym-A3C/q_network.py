@@ -26,6 +26,18 @@ class QNetwork:
 
 		if self.actor_id == 0:
 			self.saver = tf.train.Saver(max_to_keep=10)
+		
+		self.writer = tf.summary.FileWriter('./tf_logs/Process_{}'.format(self.actor_id), graph=self._tf_session.graph_def)
+
+		self._tf_total_episode_reward = tf.placeholder(tf.float32, [])
+
+		tf.summary.scalar("total_episode_reward_{}".format(self.actor_id), self._tf_total_episode_reward)
+
+		self._tf_summary_op = tf.merge_all_summaries()
+
+	def add_terminal_reward(self, step, reward):
+		summary = self._tf_session.run(self._tf_summary_op, feed_dict={self._tf_total_episode_reward: reward})
+		self.writer.add_summary(summary, global_step=step)
 
 	##
 	## @brief      Creates the tensorflow neural network
