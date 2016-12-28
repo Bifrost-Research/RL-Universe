@@ -62,7 +62,10 @@ class A3C_Learner(Process):
 		#Load weights
 		if self.file_init_weights != "" and self.actor_id == 0:
 			self.q_network.restore(self.file_init_weights)
-			self.logger.debug("Resumed training from file : {}".format(self.file_init_weights))
+			global_t = int(self.file_init_weights.split('-')[-1])
+			self.logger.debug("Resumed training from file : {} at step {}".format(self.file_init_weights, global_t))
+			with self.global_step.get_lock():
+				self.global_step.value = global_t
 
 		#Start with the initial state
 		state = self.env.get_initial_state()
@@ -70,8 +73,8 @@ class A3C_Learner(Process):
 		episode_over = False
 
 		start_time = time.time()
-
-		step_last_save = 0
+		with self.global_step.get_lock():
+			step_last_save = self.global_step.value
 		#while (self.global_step.value < self.max_global_steps):
 		while True:
 
@@ -146,7 +149,7 @@ class A3C_Learner(Process):
 				if (global_t - step_last_save) >= self.checkpoint_interval:
 					self.q_network.save(self.name_save_file, global_t)
 					step_last_save = global_t
-					self.logger.debug("Checkpoint saved")	
+					self.logger.debug("Checkpoint saved at step {}".format(global_t))	
 
 	def choose_next_action(self, state):
 

@@ -149,7 +149,7 @@ class QNetwork:
 		self._tf_session.run(self._tf_assign_ops, feed_dict=feed_dict)
 
 	def save(self, name, global_t):
-		print(self.saver.save(self._tf_session, name, global_step=global_t))
+		self.saver.save(self._tf_session, name, global_step=global_t)
 
 	def restore(self, path):
 		self.saver.restore(self._tf_session, './' + path)
