@@ -74,6 +74,7 @@ if __name__ == '__main__':
 	parser.add_argument('--load_weights', default="", type=str, help="Path to file to load pre-trained weights from. If none, then train from scratch", dest="file_init_weights")
 	parser.add_argument('--save_weights', default="models/weights.ckpt", type=str, help="Name of the files where the weights will be periodically stored", dest="name_save_file")
 	parser.add_argument('--checkpoint_interval', default=100000, type=int, help="Steps between two saves", dest="checkpoint_interval")
+	parser.add_argument('--entropy', default=0.01, type=float, help='Strength of the entropy regularization term. Default = 0.01', dest="entropy_regularisation_strength")
 
 	args = parser.parse_args()
 

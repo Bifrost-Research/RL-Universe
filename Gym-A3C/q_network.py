@@ -11,6 +11,7 @@ class QNetwork:
 		self.nb_actions = conf['nb_actions']
 		self.gamma = conf['gamma']
 		self.actor_id = None if 'actor_id' not in conf else conf['actor_id']
+		self.entropy_regularisation_strength = conf['entropy_regularisation_strength']
 		self.build_network()
 		self.create_assign_op_weights()
 		self.create_op_loss()
@@ -89,11 +90,18 @@ class QNetwork:
 
 		diff = tf.sub(R, value_state)
 
+		#Entropy = sum_a (-p_a ln p_a)
+		log_adv_probas = tf.log(adv_probas)
+		entropy = tf.reduce_sum(tf.mul(tf.constant(-1.0), tf.mul(adv_probas, log_adv_probas)), reduction_indices=1)
+		entropy_term = tf.mul(self.entropy_regularisation_strength, entropy)
+
 		masks = tf.one_hot(actions_index, on_value=True, off_value=False, depth=self.nb_actions)
 		pi_selected_actions = tf.boolean_mask(adv_probas, masks)
 		log_pi_selected_actions = tf.log(pi_selected_actions)
 
-		loss_advantage_action_function = tf.reduce_sum(tf.mul(log_pi_selected_actions, diff))
+		advantage_term = tf.mul(log_pi_selected_actions, diff)
+
+		loss_advantage_action_function = tf.reduce_sum(tf.mul(tf.constant(-1.0), tf.add(entropy_term, advantage_term)))
 
 		#In the paper, the authors recommend to multiply the loss by 0.5
 		loss_value_state_function = tf.mul(tf.constant(0.5), tf.nn.l2_loss(diff))

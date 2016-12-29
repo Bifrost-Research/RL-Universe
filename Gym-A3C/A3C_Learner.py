@@ -29,6 +29,7 @@ class A3C_Learner(Process):
 		self.actor_id = args.actor_id
 		self.game = args.game
 		self.gamma = args.gamma
+		self.entropy_regularisation_strength = args.entropy_regularisation_strength
 		self.batch_size = args.batch_size
 		self.checkpoint_interval = args.checkpoint_interval
 		self.file_init_weights = args.file_init_weights
@@ -57,7 +58,8 @@ class A3C_Learner(Process):
 			'name': 'Process_' + str(self.actor_id),
 			'nb_actions': self.nb_actions,
 			'actor_id': self.actor_id,
-			'gamma': self.gamma
+			'gamma': self.gamma,
+			'entropy_regularisation_strength': self.entropy_regularisation_strength
 			})
 
 		#Load weights
