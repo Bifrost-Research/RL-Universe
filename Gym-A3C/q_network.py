@@ -87,6 +87,7 @@ class QNetwork:
 
 		R = tf.placeholder(tf.float32, [None])
 		actions_index = tf.placeholder(tf.int32, [None])
+		advantage = tf.placeholder(tf.float32, [None])
 
 		diff = tf.sub(R, value_state)
 
@@ -99,7 +100,7 @@ class QNetwork:
 		pi_selected_actions = tf.boolean_mask(adv_probas, masks)
 		log_pi_selected_actions = tf.log(pi_selected_actions)
 
-		advantage_term = tf.mul(log_pi_selected_actions, diff)
+		advantage_term = tf.mul(log_pi_selected_actions, advantage)
 
 		loss_advantage_action_function = tf.reduce_sum(tf.mul(tf.constant(-1.0), tf.add(entropy_term, advantage_term)))
 
@@ -120,6 +121,7 @@ class QNetwork:
 		self._tf_loss_R = R
 		self._tf_loss_action_index = actions_index
 		self._tf_grad_placeholder = grad_placeholder
+		self._tf_loss_advantage = advantage
 
 		#Output
 		self._tf_loss = loss
@@ -127,11 +129,12 @@ class QNetwork:
 		self._tf_get_gradients = grads
 		self._tf_apply_gradients = apply_placeholder_op
 
-	def get_gradients(self, state, R, action_index):
+	def get_gradients(self, state, R, action_index, advantage):
 		feed_dict = {
 		self._tf_state: np.array(state),
 		self._tf_loss_R: R,
-		self._tf_loss_action_index: action_index
+		self._tf_loss_action_index: action_index,
+		self._tf_loss_advantage: advantage
 		}
 
 		fatches = [grad[0] for grad in self._tf_get_gradients]

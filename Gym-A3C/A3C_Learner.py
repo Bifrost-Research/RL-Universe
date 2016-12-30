@@ -97,6 +97,7 @@ class A3C_Learner(Process):
 
 			rewards = []
 			states = []
+			values = []
 			actions_index_target = []
 
 			while not(episode_over or ((self.local_step - local_step_start) == self.batch_size)):
@@ -109,6 +110,7 @@ class A3C_Learner(Process):
 				actions_index_target.append(action)
 				rewards.append(reward)
 				states.append(state)
+				values.append(value_state)
 				total_episode_reward += reward
 
 				state = next_state
@@ -125,13 +127,15 @@ class A3C_Learner(Process):
 				R = value_state
 
 			R_target = [0.0 for _ in rewards]
+			adv = [0.0 for _ in rewards]
 
 			for i in reversed(range(len(rewards))):
 				R = rewards[i] + self.gamma*R
 				R_target[i] = R
+				adv[i] = R - values[i]
 
 			#Compute the gradient
-			grad = self.q_network.get_gradients(states, R_target, actions_index_target)
+			grad = self.q_network.get_gradients(states, R_target, actions_index_target, adv)
 
 			self.apply_gradients_on_shared_network(grad)
 
