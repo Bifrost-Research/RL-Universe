@@ -78,6 +78,8 @@ class A3C_Learner(Process):
 		start_time = time.time()
 		with self.global_step.get_lock():
 			step_last_save = self.global_step.value
+
+		len_episode = 0
 		#while (self.global_step.value < self.max_global_steps):
 		while True:
 
@@ -115,6 +117,7 @@ class A3C_Learner(Process):
 
 				state = next_state
 				self.local_step += 1
+				len_episode += 1
 				
 			with self.global_step.get_lock():
 				self.global_step.value += self.local_step - local_step_start
@@ -135,7 +138,7 @@ class A3C_Learner(Process):
 				adv[i] = R - values[i]
 
 			#Compute the gradient
-			grad = self.q_network.get_gradients(states, R_target, actions_index_target, adv)
+			value_loss, adv_loss, loss, grad = self.q_network.get_gradients(states, R_target, actions_index_target, adv)
 
 			self.apply_gradients_on_shared_network(grad)
 
@@ -146,10 +149,11 @@ class A3C_Learner(Process):
 					global_t = self.global_step.value
 				steps_per_sec = global_t / elapsed_time
 				self.logger.debug("STEPS {} / REWARDS {} / {} STEPS/s".format(global_t, total_episode_reward, steps_per_sec))
-				self.q_network.add_terminal_reward(global_t, total_episode_reward)
+				self.q_network.add_terminal_reward(global_t, len_episode, total_episode_reward, grad, value_loss, adv_loss, loss)
 				state = self.env.get_initial_state()
 				episode_over = False
 				total_episode_reward = 0
+				len_episode = 0
 
 			if self.actor_id == 0:
 				with self.global_step.get_lock():
@@ -168,9 +172,11 @@ class A3C_Learner(Process):
 		#if np.random.rand() >= self.epsilon:
 		#	action = np.argmax(adv_probas)
 		#else:
-		#	action = self.env.env.action_space.sample()
+		#	action = np.random.randint(3)
 
 		action = np.random.choice(self.nb_actions, p=adv_probas)
+		#action = np.argmax(adv_probas)
+		#print(adv_probas, action)
 		return action, value_state, adv_probas
 
 	def apply_gradients_on_shared_network(self, grad):

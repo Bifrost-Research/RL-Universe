@@ -30,14 +30,26 @@ class QNetwork:
 		
 		self.writer = tf.summary.FileWriter('./tf_logs/Process_{}'.format(self.actor_id), graph=self._tf_session.graph_def)
 
-		self._tf_total_episode_reward = tf.placeholder(tf.float32, [])
+		self._tf_summary_total_episode_reward = tf.placeholder(tf.float32, [])
+		self._tf_summary_len_episode = tf.placeholder(tf.float32, [])
 
-		tf.summary.scalar("total_episode_reward_{}".format(self.actor_id), self._tf_total_episode_reward)
+		tf.summary.scalar("total_episode_reward", self._tf_summary_total_episode_reward)
+		tf.summary.scalar("len_episode", self._tf_summary_len_episode)
 
 		self._tf_summary_op = tf.merge_all_summaries()
 
-	def add_terminal_reward(self, step, reward):
-		summary = self._tf_session.run(self._tf_summary_op, feed_dict={self._tf_total_episode_reward: reward})
+	def add_terminal_reward(self, step, len_episode, reward, grad_vals, value_loss, adv_loss, loss):
+		feed_dict = {}
+		for i in range(len(self._tf_grad_placeholder)):
+			feed_dict[self._tf_grad_placeholder[i][0]] = grad_vals[i]
+
+		feed_dict[self._tf_summary_total_episode_reward] = reward
+		feed_dict[self._tf_summary_len_episode] = len_episode
+		feed_dict[self._tf_summary_value_state_loss] = value_loss
+		feed_dict[self._tf_summary_adv_loss] = adv_loss
+		feed_dict[self._tf_summary_loss] = loss
+
+		summary = self._tf_session.run(self._tf_summary_op, feed_dict=feed_dict)
 		self.writer.add_summary(summary, global_step=step)
 
 	##
@@ -60,6 +72,12 @@ class QNetwork:
 		adv_probas = slim.fully_connected(fcc_1, self.nb_actions, scope=self.name + '/adv_probas', activation_fn=nn.softmax)
 
 		value_state = slim.fully_connected(fcc_1, 1, scope=self.name + '/value_state', activation_fn=None)
+
+		tf.summary.scalar("model/cnn1_global_norm", tf.global_norm(slim.get_variables(scope=self.name + '/cnn_1')))
+		tf.summary.scalar("model/cnn2_global_norm", tf.global_norm(slim.get_variables(scope=self.name + '/cnn_2')))
+		tf.summary.scalar("model/fcc1_global_norm", tf.global_norm(slim.get_variables(scope=self.name + '/fcc_1')))
+		tf.summary.scalar("model/adv_probas_global_norm", tf.global_norm(slim.get_variables(scope=self.name + '/adv_probas')))
+		tf.summary.scalar("model/value_state_global_norm", tf.global_norm(slim.get_variables(scope=self.name + '/value_state')))
 
 		#Input
 		self._tf_state = state
@@ -95,27 +113,46 @@ class QNetwork:
 		log_adv_probas = tf.log(adv_probas)
 		entropy = tf.reduce_sum(tf.mul(tf.constant(-1.0), tf.mul(adv_probas, log_adv_probas)), reduction_indices=1)
 		entropy_term = tf.mul(self.entropy_regularisation_strength, entropy)
+		self.masks = tf.one_hot(actions_index, on_value=True, off_value=False, depth=self.nb_actions)
+		self.pi_selected_actions = tf.boolean_mask(adv_probas, self.masks)
+		log_pi_selected_actions = tf.log(self.pi_selected_actions)
 
-		masks = tf.one_hot(actions_index, on_value=True, off_value=False, depth=self.nb_actions)
-		pi_selected_actions = tf.boolean_mask(adv_probas, masks)
-		log_pi_selected_actions = tf.log(pi_selected_actions)
+		advantage_term = log_pi_selected_actions * advantage
 
-		advantage_term = tf.mul(log_pi_selected_actions, advantage)
-
-		loss_advantage_action_function = tf.reduce_sum(tf.mul(tf.constant(-1.0), tf.add(entropy_term, advantage_term)))
+		loss_advantage_action_function = -tf.reduce_sum(entropy_term + advantage_term)
 
 		#In the paper, the authors recommend to multiply the loss by 0.5
-		loss_value_state_function = tf.mul(tf.constant(0.5), tf.nn.l2_loss(diff))
+		loss_value_state_function = 0.5 * tf.nn.l2_loss(diff)
 
-		loss = tf.add(loss_advantage_action_function, loss_value_state_function)
+		loss = loss_advantage_action_function + loss_value_state_function
 
-		opt = tf.train.RMSPropOptimizer(0.0007, decay=self.gamma)
+		opt = tf.train.AdamOptimizer(1e-4)
 
 		grads = opt.compute_gradients(loss, var_list=self.get_all_variables())
 
-		grad_placeholder = [(tf.placeholder("float", shape=grad[1].get_shape()), grad[1]) for grad in grads]
+		symbolic_grads = tf.gradients(loss, self.get_all_variables())
+
+		symbolic_grads, _ = tf.clip_by_global_norm(symbolic_grads, 40.0)
+
+		grad_placeholder = [(tf.placeholder(tf.float32, shape=grad[1].get_shape()), grad[1]) for grad in grads]
 
 		apply_placeholder_op = opt.apply_gradients(grad_placeholder)
+
+		tf.summary.scalar("gradient/grad_global_norm", tf.global_norm(grad_placeholder))
+		tf.summary.scalar("gradient/cnn1_grad_global_norm", tf.global_norm(grad_placeholder[0:2]))
+		tf.summary.scalar("gradient/cnn2_grad_global_norm", tf.global_norm(grad_placeholder[2:2]))
+		tf.summary.scalar("gradient/fcc1_grad_global_norm", tf.global_norm(grad_placeholder[4:2]))
+		tf.summary.scalar("gradient/adv_probas_grad_global_norm", tf.global_norm(grad_placeholder[6:2]))
+		tf.summary.scalar("gradient/value_state_grad_global_norm", tf.global_norm(grad_placeholder[8:2]))
+
+		tf.summary.scalar("model/var_global_norm", tf.global_norm(self.get_all_variables()))
+
+		self._tf_summary_adv_loss = tf.placeholder(tf.float32, [])
+		self._tf_summary_value_state_loss = tf.placeholder(tf.float32, [])
+		self._tf_summary_loss = tf.placeholder(tf.float32, [])
+		tf.summary.scalar("loss/advantage_function_loss", self._tf_summary_adv_loss)
+		tf.summary.scalar("loss/value_state_function_loss", self._tf_summary_value_state_loss)
+		tf.summary.scalar("loss/total_loss", self._tf_summary_loss)
 
 		#Input
 		self._tf_loss_R = R
@@ -124,9 +161,11 @@ class QNetwork:
 		self._tf_loss_advantage = advantage
 
 		#Output
+		self._tf_loss_value_state_function = loss_value_state_function
+		self._tf_loss_advantage_action_function = loss_advantage_action_function
 		self._tf_loss = loss
 		self._tf_optimizer = opt
-		self._tf_get_gradients = grads
+		self._tf_get_gradients = symbolic_grads
 		self._tf_apply_gradients = apply_placeholder_op
 
 	def get_gradients(self, state, R, action_index, advantage):
@@ -137,7 +176,8 @@ class QNetwork:
 		self._tf_loss_advantage: advantage
 		}
 
-		fatches = [grad[0] for grad in self._tf_get_gradients]
+		#fatches = [grad[0] for grad in self._tf_get_gradients]
+		fatches = [self._tf_loss_value_state_function, self._tf_loss_advantage_action_function, self._tf_loss, self._tf_get_gradients]
 		return self._tf_session.run(fatches, feed_dict=feed_dict)
 
 	def apply_gradients(self, grad_vals):
