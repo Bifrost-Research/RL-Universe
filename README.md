@@ -5,7 +5,7 @@ Implementation of Reinforcement Learning algorithms in Python3 using he OpenAI f
 Implementation of the A3C algorithm for OpenAI Gym's Atari games. The implementation uses processes instead of threads to achieve real concurrency. 
 
 ##How to run the A3C ?
-To lauch the A3C with the default parameters, just use the following command. It is possible to see the available hyper parameters with the command -h.
+To launch the A3C with the default parameters, just use the following command. It is possible to see the available hyper parameters with the command -h.
 ```
 python3.5 main.py Pong-v0
 ```
