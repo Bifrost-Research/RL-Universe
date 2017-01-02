@@ -11,7 +11,7 @@ python3.5 main.py Pong-v0
 ```
 To see different plots like the rewards, the losses... it is necessary to launch TensorBoard with the command
 ```
-tensorboard --logdir=/tf_logs/
+tensorboard --logdir=tf_logs/
 ```
 
 ##Results
