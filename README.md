@@ -1,5 +1,5 @@
 # What is in this repo?
-Implementation of a Reinforcement Learning algorithms in Python3 using he OpenAI framework and TensorFlow as neural network libraries. Results are shown with TensorBoard.
+Implementation of Reinforcement Learning algorithms in Python3 using he OpenAI framework and TensorFlow as neural network libraries. Results are shown with TensorBoard.
 
 #Gym-A3C
 Implementation of the A3C algorithm for OpenAI Gym's Atari games. The implementation uses processes instead of threads to achieve real concurrency. 
