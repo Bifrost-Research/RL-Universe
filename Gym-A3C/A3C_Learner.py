@@ -174,8 +174,8 @@ class A3C_Learner(Process):
 		#else:
 		#	action = np.random.randint(3)
 
-		action = np.random.choice(self.nb_actions, p=adv_probas)
-		#action = np.argmax(adv_probas)
+		#action = np.random.choice(self.nb_actions, p=adv_probas)
+		action = np.argmax(adv_probas)
 		#print(adv_probas, action)
 		return action, value_state, adv_probas
 
