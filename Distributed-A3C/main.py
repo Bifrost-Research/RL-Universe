@@ -58,6 +58,17 @@ def run(args, server):
     logger.info(
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
+    with sv.managed_session(server.target, config=config) as sess, sess.as_default():
+        trainer.start(sess, summary_writer)
+        global_step = sess.run(trainer.global_step)
+        logger.info("Starting training at step=%d", global_step)
+        while not sv.should_stop() and (not num_global_steps or global_step < num_global_steps):
+            trainer.process(sess)
+            global_step = sess.run(trainer.global_step)
+
+    # Ask for all the services to stop.
+    sv.stop()
+    logger.info('reached %s steps. worker stopped.', global_step)
 
 
 ##

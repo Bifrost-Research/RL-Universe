@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from tensorflow.python.ops import nn
+from env_runner import *
 
 class Model:
 
@@ -15,11 +16,24 @@ class Model:
 
         fcc_1 = slim.fully_connected(flatten, 256, scope='fcc_1', activation_fn=nn.relu)
 
-        self.advantage = slim.fully_connected(fcc_1, nb_actions, scope='advantage', activation_fn=nn.softmax)
+        self.advantage = slim.fully_connected(fcc_1, nb_actions, scope='advantage', activation_fn=None)
 
         self.value_state = slim.fully_connected(fcc_1, 1, scope='value_state', activation_fn=None)
 
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
+
+    def predict(self, state):
+        sess = tf.get_default_session()
+        return sess.run([self.value_state, self.advantage], feed_dict={
+            self.state: [state]
+            })
+
+    def value(self, state):
+        sess = tf.get_default_session()
+        return sess.run(self.value_state, feed_dict={
+            self.state: [state]
+            })
+
 
 class A3C:
     """docstring for A3C"""
@@ -53,6 +67,8 @@ class A3C:
             bs = tf.to_float(tf.shape(self.local_network.state)[0])
             self.loss = pi_loss + 0.5 * vf_loss - entropy * 0.01
 
+            self.runner = EnvRunner(env, self.local_network, 20)
+
             grads = tf.gradients(self.loss, self.local_network.var_list)
 
             tf.summary.scalar("model/policy_loss", pi_loss / bs)
@@ -76,3 +92,35 @@ class A3C:
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0
+
+    def start(self, sess, summary_writer):
+        self.summary_writer = summary_writer
+        #self.sess = sess
+
+    def process(self, sess):
+
+        sess.run(self.sync) #copy weights from shared to sync
+
+        states_batch, R_batch, adv_batch, actions_batch = self.runner.get_batch()
+
+        should_compute_summary = self.task == 0
+
+        if should_compute_summary:
+            fetches = [self.summary_op, self.train_op, self.global_step]
+        else:
+            fetches = [self.train_op, self.global_step]
+
+        feed_dict = {
+            self.local_network.state: states_batch,
+            self.ac: actions_batch,
+            self.adv: adv_batch,
+            self.r: R_batch
+        }
+
+        fetched = sess.run(fetches, feed_dict=feed_dict)
+
+        if should_compute_summary:
+            self.summary_writer.add_summary(tf.Summary.FromString(fetched[0]), fetched[-1])
+            self.summary_writer.flush()
+        self.local_steps += 1
+        
